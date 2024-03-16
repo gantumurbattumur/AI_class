@@ -73,8 +73,11 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
+        #print ("successorGameState: ", successorGameState)
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+       
+
+        
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -127,7 +130,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         def minimax(gameState, depth, agentIndex):
             # If the game is over or the maximum depth is reached, return the evaluation score
             if gameState.isWin() or gameState.isLose() or depth == self.depth: return self.evaluationFunction(gameState)
-
+            
             state = gameState.getLegalActions(agentIndex)
             numAgents = gameState.getNumAgents()
 
@@ -145,10 +148,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     maxValue = max(maxValue, score)
                 else:
                     if agentIndex == numAgents - 1:
-                        # If it's the last ghost, switch to Pacman 
+                        # If the depth is reached
                         score = minimax(successor, depth + 1, 0)
                     else:
-                        # Otherwise, continue with the next ghost
                         score = minimax(successor, depth, agentIndex + 1)
                     miniValue = min(miniValue, score)
 
@@ -181,23 +183,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-
         
-class ExpectimaxAgent(MultiAgentSearchAgent):
-    """
-      Your expectimax agent (question 4)
-    """
-
-    def getAction(self, gameState):
-        """
-          Returns the expectimax action using self.depth and self.evaluationFunction
-
-          All ghosts should be modeled as choosing uniformly at random from their
-          legal moves.
-        """
-        "*** YOUR CODE HERE ***"
-        # Re-using the base code structure from the minimax function
-        def minimax(gameState, depth, agentIndex):
+        def alphaBeta(gameState, depth, agentIndex, a, b):
+            
             # If the game is over or the maximum depth is reached, return the evaluation score
             if gameState.isWin() or gameState.isLose() or depth == self.depth: return self.evaluationFunction(gameState)
 
@@ -214,21 +202,83 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
                 # If it's Pacman's turn 
                 if agentIndex == 0:
-                    score = minimax(successor, depth, 1)
-                    maxValue = max(maxValue, score)
+                    maxValue = max(maxValue, alphaBeta(successor, depth, 1, a, b))
+                    if maxValue >= b: return maxValue
+                    a = max(maxValue, a)
                 else:
                     if agentIndex == numAgents - 1:
-                        # If it's the last ghost, switch to Pacman 
-                        score = minimax(successor, depth + 1, 0)
+                        # If the depth is reached
+                        score = alphaBeta(successor, depth + 1, 0, a, b)
                     else:
-                        # Otherwise, continue with the next ghost
-                        score = minimax(successor, depth, agentIndex + 1)
+                        score = alphaBeta(successor, depth, agentIndex + 1, a, b)
                     miniValue = min(miniValue, score)
+                    if miniValue <= a: return miniValue
+                    b = min(miniValue, b)
 
             if agentIndex == 0:
                 return maxValue
             else:
                 return miniValue
+
+        # Just some small number that will be checked alphaBeta
+        a = float('-inf')
+        b = float('inf')
+        pacmanOption = gameState.getLegalActions(0)
+        for action in pacmanOption:
+            successor = gameState.generateSuccessor(0, action)
+            # First position of the game starting
+            score = alphaBeta(successor, 0, 1, a,b) 
+            if score > a:
+                a = score
+                bestAction = action
+
+        return bestAction      
+        
+class ExpectimaxAgent(MultiAgentSearchAgent):
+    """
+      Your expectimax agent (question 4)
+    """
+
+    def getAction(self, gameState):
+        """
+          Returns the expectimax action using self.depth and self.evaluationFunction
+
+          All ghosts should be modeled as choosing uniformly at random from their
+          legal moves.
+        """
+        "*** YOUR CODE HERE ***"
+        # Re-using the base code structure from the minimax function
+        def expmax(gameState, depth, agentIndex):
+            # If the game is over or the maximum depth is reached, return the evaluation score
+            if gameState.isWin() or gameState.isLose() or depth == self.depth: return self.evaluationFunction(gameState)
+
+            state = gameState.getLegalActions(agentIndex)
+            numAgents = gameState.getNumAgents()
+
+            # Initialize the max and min scores of (values)
+            # Eventually changed over min or max
+            maxValue = -100000
+            expValue = 0
+
+            #totalSuccessors = []
+            for action in state:
+                successor = gameState.generateSuccessor(agentIndex, action)
+                # If it's Pacman's turn 
+                if agentIndex == 0:
+                    score = expmax(successor, depth, 1)
+                    maxValue = max(maxValue, score)
+                else:
+                    if agentIndex == numAgents - 1:
+                        # If the depth is reached
+                        score = expmax(successor, depth + 1, 0) 
+                    else:
+                        score = expmax(successor, depth, agentIndex + 1) 
+                    expValue += score / len(state)
+
+            if agentIndex == 0:
+                return maxValue
+            else:
+                return expValue  
 
         # Just some small number that will be checked minimax
         v = -100000
@@ -237,7 +287,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         for action in pacmanOption:
             successor = gameState.generateSuccessor(0, action)
             # First position of the game starting
-            score = minimax(successor, 0, 1) 
+            score = expmax(successor, 0, 1) 
             if score > v:
                 v = score
                 bestAction = action
